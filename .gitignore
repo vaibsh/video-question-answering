@@ -1,0 +1,8 @@
+venv/
+data/
+checkpoints/
+models/
+__pycache__
+*.pt
+*.pth
+*.log

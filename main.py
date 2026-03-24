@@ -1,0 +1,93 @@
+import torch
+import argparse
+import json
+from functools import partial
+
+from model import VideoQAModel
+from dataset import VideoQADataset
+from train import train
+from utils import collate_fn
+from transformers import AutoTokenizer
+import clip
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--mode", type=str, default="train")  # train / infer
+    parser.add_argument("--video_path", type=str, default=None)
+    parser.add_argument("--question", type=str, default=None)
+
+    args = parser.parse_args()
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # Load CLIP
+    clip_model, preprocess = clip.load("ViT-B/32", device=device)
+
+    # Tokenizer
+    tokenizer = AutoTokenizer.from_pretrained("gpt2")
+    tokenizer.pad_token = tokenizer.eos_token
+
+    if args.mode == "train":
+        dataset = VideoQADataset(
+            json_path="data/train.json",
+            video_dir="data/video",
+            tokenizer=tokenizer,
+            preprocess=preprocess
+        )
+
+        dataloader = torch.utils.data.DataLoader(dataset, 
+                                                 batch_size=2, 
+                                                 shuffle=True,
+                                                 collate_fn=partial(collate_fn, pad_token_id=tokenizer.pad_token_id)
+                                                 )
+        
+        val_dataset = VideoQADataset(
+                        json_path="data/val.json",
+                        video_dir="data/video",
+                        tokenizer=tokenizer,
+                        preprocess=preprocess
+                        )
+
+        val_dataloader = torch.utils.data.DataLoader(
+                        val_dataset,
+                        batch_size=2,
+                        shuffle=False,
+                        collate_fn=partial(collate_fn, pad_token_id=tokenizer.pad_token_id)
+                        )
+
+        model = VideoQAModel(vocab_size=tokenizer.vocab_size).to(device)
+
+        optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+        criterion = torch.nn.CrossEntropyLoss(ignore_index=-100)
+
+        train(model, 
+              dataloader, 
+              val_dataloader,
+              optimizer, 
+              criterion, 
+              device, 
+              tokenizer.pad_token_id)
+
+        # Save model
+        torch.save(model.state_dict(), "models/model-video-q-a.pt")
+
+    elif args.mode == "infer":
+        model = VideoQAModel(vocab_size=tokenizer.vocab_size).to(device)
+        model.load_state_dict(torch.load("models/model-video-q-a.pt", map_location=device))
+        model.eval()
+
+        from inference import run_inference
+
+        run_inference(
+            model,
+            args.video_path,
+            args.question,
+            device,
+            tokenizer,
+            preprocess
+        )
+
+
+if __name__ == "__main__":
+    main()
