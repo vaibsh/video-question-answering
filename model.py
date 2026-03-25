@@ -69,7 +69,9 @@ class VideoQAModel(nn.Module):
 
     def generate(self, frames, input_ids, attention_mask, max_new_tokens=20):
         video_feats = self.encode_video(frames)
+        video_feats = video_feats.float()
         video_feats = self.video_proj(video_feats)
+        video_feats = video_feats.unsqueeze(1)
 
         text_embeds = self.decoder.transformer.wte(input_ids)
 
