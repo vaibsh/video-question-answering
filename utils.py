@@ -1,5 +1,5 @@
-import cv2
 import torch
+import cv2
 from PIL import Image
 
 def extract_frames(video_path, preprocess, max_frames=16):
@@ -29,19 +29,19 @@ def extract_frames(video_path, preprocess, max_frames=16):
 
     cap.release()
 
-    # Pad if needed
     while len(frames) < max_frames:
         frames.append(frames[-1])
 
-    frames = torch.stack(frames)  # (T, C, H, W)
-
+    frames = torch.stack(frames)
     return frames
 
+
 def collate_fn(batch):
-    frames, input_ids, attention_mask = zip(*batch)
+    frames, input_ids, attention_mask, labels = zip(*batch)
 
     frames = torch.stack(frames)
     input_ids = torch.stack(input_ids)
     attention_mask = torch.stack(attention_mask)
+    labels = torch.stack(labels)
 
-    return frames, input_ids, attention_mask
+    return frames, input_ids, attention_mask, labels

@@ -16,7 +16,8 @@ def run_inference(model, video_path, question, device, tokenizer, preprocess):
     with torch.no_grad():
         output = model.generate(frames, input_ids, attention_mask)
 
-    answer = tokenizer.decode(output[0], skip_special_tokens=True)
+    decoded = tokenizer.decode(output[0], skip_special_tokens=True)
+    answer = decoded.split("Answer:")[-1].strip()
 
     print("\nQuestion:", question)
     print("Answer:", answer)

@@ -23,10 +23,14 @@ class VideoQADataset(Dataset):
         question = item["question"]
         answer = item["answer"]
 
-        text = f"Question: {question} Answer: {answer}{self.tokenizer.eos_token}"
+        # Prompt (NO answer included here)
+        prompt = f"Question: {question} Answer:"
+
+        # Full sequence (prompt + answer)
+        full_text = prompt + " " + answer + self.tokenizer.eos_token
 
         encoded = self.tokenizer(
-            text,
+            full_text,
             padding="max_length",
             truncation=True,
             max_length=40,
@@ -36,4 +40,17 @@ class VideoQADataset(Dataset):
         input_ids = encoded["input_ids"].squeeze(0)
         attention_mask = encoded["attention_mask"].squeeze(0)
 
-        return frames, input_ids, attention_mask
+        # Create labels
+        labels = input_ids.clone()
+
+        # Mask prompt tokens
+        prompt_ids = self.tokenizer(
+            prompt,
+            truncation=True,
+            max_length=40,
+            return_tensors="pt"
+        )["input_ids"].squeeze(0)
+
+        labels[:len(prompt_ids)] = -100
+
+        return frames, input_ids, attention_mask, labels
