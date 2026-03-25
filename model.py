@@ -33,6 +33,7 @@ class VideoQAModel(nn.Module):
 
     def forward(self, frames, input_ids, attention_mask, labels):
         video_feats = self.encode_video(frames)
+        video_feats = video_feats.float()
         video_feats = self.video_proj(video_feats)
         video_feats = video_feats.unsqueeze(1)
         text_embeds = self.decoder.transformer.wte(input_ids)
