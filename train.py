@@ -1,65 +1,48 @@
 import torch
 
-def train(model, dataloader, val_loader,optimizer, criterion, device, pad_token_id, epochs=5):
-    
-    # ---- TRAIN ----
-    model.train()
-
-    for epoch in range(epochs):
-        print(f"\nEpoch {epoch+1}")
-        
-        total_loss = 0
-        for frames, questions, answers in dataloader:
-            frames = frames.to(device)
-            answers = answers.to(device)
-
-            input_tokens = answers[:, :-1]
-            target_tokens = answers[:, 1:]
-            target_tokens[target_tokens == pad_token_id] = -100
-            logits = model(frames, list(questions), input_tokens)
-
-            loss = criterion(
-                logits.reshape(-1, logits.size(-1)),
-                target_tokens.reshape(-1)
-            )
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            total_loss += loss.item()
-
-        train_loss = total_loss / len(dataloader)
-
-        # ---- VALIDATION ----
-        val_loss = evaluate(model, val_loader, criterion, device, pad_token_id)
-        print(f"Train Loss:, {train_loss:.4f}")
-        print(f"Validation Loss:, {val_loss:.4f}")
-
-    # Save final checkpoint
-    torch.save(model.state_dict(), f"models/model_video-q-a.pt")
-
-def evaluate(model, dataloader, criterion, device, pad_token_id):
+def evaluate(model, dataloader, device):
     model.eval()
     total_loss = 0
 
     with torch.no_grad():
-        for frames, questions, answers in dataloader:
+        for frames, input_ids, attention_mask in dataloader:
             frames = frames.to(device)
-            answers = answers.to(device)
+            input_ids = input_ids.to(device)
+            attention_mask = attention_mask.to(device)
 
-            input_tokens = answers[:, :-1]
-            target_tokens = answers[:, 1:]
-
-            # mask padding
-            target_tokens[target_tokens == pad_token_id] = -100
-
-            logits = model(frames, list(questions), input_tokens)
-
-            loss = criterion(
-                logits.reshape(-1, logits.size(-1)),
-                target_tokens.reshape(-1)
-            )
+            outputs = model(frames, input_ids, attention_mask)
+            loss = outputs.loss
 
             total_loss += loss.item()
 
     return total_loss / len(dataloader)
+
+
+def train(model, train_loader, val_loader, optimizer, device, num_epochs=5):
+    for epoch in range(num_epochs):
+        model.train()
+        total_loss = 0
+
+        for frames, input_ids, attention_mask in train_loader:
+            frames = frames.to(device)
+            input_ids = input_ids.to(device)
+            attention_mask = attention_mask.to(device)
+
+            outputs = model(frames, input_ids, attention_mask)
+            loss = outputs.loss
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+
+            total_loss += loss.item()
+
+        train_loss = total_loss / len(train_loader)
+
+        # ✅ Validation step
+        val_loss = evaluate(model, val_loader, device) if val_loader is not None else None
+
+        if val_loss is not None:
+            print(f"Epoch {epoch+1} | Train Loss: {train_loss:.4f} | Val Loss: {val_loss:.4f}")
+        else:
+            print(f"Epoch {epoch+1} | Train Loss: {train_loss:.4f}")

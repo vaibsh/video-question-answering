@@ -1,8 +1,6 @@
 import torch
 from torch.utils.data import Dataset
 import json
-import os
-import cv2
 from utils import extract_frames
 
 class VideoQADataset(Dataset):
@@ -19,36 +17,23 @@ class VideoQADataset(Dataset):
     def __getitem__(self, idx):
         item = self.data[idx]
 
-        video_path = os.path.join(self.video_dir, f"video{item['video_id']}.mp4")
+        video_path = f"{self.video_dir}/video{item['video_id']}.mp4"
+        frames = extract_frames(video_path, self.preprocess, self.max_frames)
 
-        # Load frames
-        frames = extract_frames(video_path)
+        question = item["question"]
+        answer = item["answer"]
 
-        # Limit frames
-        frames = frames[:self.max_frames]
+        text = f"Question: {question} Answer: {answer}{self.tokenizer.eos_token}"
 
-        # Handle empty video
-        if len(frames) == 0:
-            raise ValueError(f"No frames found in {video_path}")
-
-        # Pad frames if fewer than max_frames
-        while len(frames) < self.max_frames:
-            frames.append(frames[-1])
-
-        # Apply CLIP preprocessing correctly
-        processed_frames = []
-        for f in frames:
-            f = self.preprocess(f)
-            processed_frames.append(f)
-
-        frames = torch.stack(processed_frames)
-
-        question = item['question']
-
-        # Tokenize answer
-        answer_tokens = torch.tensor(
-            self.tokenizer.encode(item['answer']),
-            dtype=torch.long
+        encoded = self.tokenizer(
+            text,
+            padding="max_length",
+            truncation=True,
+            max_length=40,
+            return_tensors="pt"
         )
 
-        return frames, question, answer_tokens
+        input_ids = encoded["input_ids"].squeeze(0)
+        attention_mask = encoded["attention_mask"].squeeze(0)
+
+        return frames, input_ids, attention_mask
