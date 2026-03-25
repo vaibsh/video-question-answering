@@ -27,14 +27,14 @@ class VideoQAModel(nn.Module):
             feats = self.clip_model.encode_image(frames)
 
         feats = feats.view(B, T, -1)
-        feats = feats.mean(dim=1, keepdim=True)
+        feats = feats.mean(dim=1)
 
         return feats
 
     def forward(self, frames, input_ids, attention_mask, labels):
         video_feats = self.encode_video(frames)
         video_feats = self.video_proj(video_feats)
-
+        video_feats = video_feats.unsqueeze(1)
         text_embeds = self.decoder.transformer.wte(input_ids)
 
         inputs_embeds = torch.cat([video_feats, text_embeds], dim=1)
