@@ -8,13 +8,21 @@ class VideoQAModel(nn.Module):
     def __init__(self):
         super().__init__()
 
-        # CLIP encoder (frozen)
+        # CLIP encoder (frozen) - both visual and text
         self.clip_model, _ = clip.load("ViT-B/32")
         for p in self.clip_model.parameters():
             p.requires_grad = False
 
         # GPT-2 decoder
         self.decoder = AutoModelForCausalLM.from_pretrained("gpt2")
+        # Partial freeze GPT-2
+        for p in self.decoder.parameters(): # Freeze all layers first
+            p.requires_grad = False
+        for block in self.decoder.transformer.h[-2:]:  # unfreeze last 2 layers
+            for p in block.parameters():
+                p.requires_grad = True
+        for p in self.decoder.lm_head.parameters(): # unfreeze lm_head
+            p.requires_grad = True
 
         # Projection
         self.video_proj = nn.Linear(512, 768)
