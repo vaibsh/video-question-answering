@@ -16,8 +16,10 @@ def evaluate(model, dataloader, device):
 
     return total_loss / len(dataloader)
 
-
 def train(model, train_loader, val_loader, optimizer, device, num_epochs=5):
+    # ✅ NEW: GradScaler for AMP
+    scaler = torch.cuda.amp.GradScaler()
+
     for epoch in range(num_epochs):
         model.train()
         total_loss = 0
@@ -28,12 +30,17 @@ def train(model, train_loader, val_loader, optimizer, device, num_epochs=5):
             attention_mask = attention_mask.to(device)
             labels = labels.to(device)
 
-            outputs = model(frames, input_ids, attention_mask, labels)
-            loss = outputs.loss
+            # ✅ NEW: autocast for mixed precision
+            with torch.cuda.amp.autocast():
+                outputs = model(frames, input_ids, attention_mask, labels)
+                loss = outputs.loss
 
             optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+
+            # ✅ NEW: scaled backward pass
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
 
             total_loss += loss.item()
 

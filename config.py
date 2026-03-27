@@ -14,3 +14,8 @@ class Config:
     # Model paths
     MODEL_DIR = os.path.join(BASE_DIR, "models")
     MODEL_PATH = os.path.join(MODEL_DIR, "model-video-q-a.pt")
+
+    # Hyper-Params
+    BATCH_SIZE = 32
+    MAX_FRAMES = 16
+    NUM_WORKERS = 4

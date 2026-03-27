@@ -34,14 +34,18 @@ def main():
             json_path=config.TRAIN_JSON,
             video_dir=config.VIDEO_DIR,
             tokenizer=tokenizer,
-            preprocess=preprocess
+            preprocess=preprocess,
+            max_frames=config.MAX_FRAMES
         )
 
         train_loader = torch.utils.data.DataLoader(
             train_dataset,
-            batch_size=2,
+            batch_size=config.BATCH_SIZE,
             shuffle=True,
-            collate_fn=collate_fn
+            collate_fn=collate_fn,
+            num_workers=config.NUM_WORKERS,
+            pin_memory=True,
+            persistent_workers=True
         )
 
         # ✅ Validation dataset
@@ -49,14 +53,18 @@ def main():
             json_path=config.VAL_JSON,
             video_dir=config.VIDEO_DIR,
             tokenizer=tokenizer,
-            preprocess=preprocess
+            preprocess=preprocess,
+            max_frames=config.MAX_FRAMES
         )
 
         val_loader = torch.utils.data.DataLoader(
             val_dataset,
-            batch_size=2,
+            batch_size=config.BATCH_SIZE,
             shuffle=False,
-            collate_fn=collate_fn
+            collate_fn=collate_fn,
+            num_workers=config.NUM_WORKERS,
+            pin_memory=True,
+            persistent_workers=True
         )
 
         model = VideoQAModel().to(device)

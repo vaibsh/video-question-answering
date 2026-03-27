@@ -1,7 +1,8 @@
 venv/
 data/
 checkpoints/
-models/
+models/*
+!models/.gitkeep
 __pycache__
 *.pt
 *.pth
