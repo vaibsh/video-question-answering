@@ -4,12 +4,13 @@ import json
 from utils import extract_frames
 
 class VideoQADataset(Dataset):
-    def __init__(self, json_path, video_dir, tokenizer, preprocess, max_frames=16):
+    def __init__(self, json_path, video_dir, tokenizer, preprocess, max_frames=16, is_inference=False):
         self.data = json.load(open(json_path))
         self.video_dir = video_dir
         self.tokenizer = tokenizer
         self.preprocess = preprocess
         self.max_frames = max_frames
+        self.is_inference = is_inference
 
     def __len__(self):
         return len(self.data)
@@ -21,12 +22,26 @@ class VideoQADataset(Dataset):
         frames = extract_frames(video_path, self.preprocess, self.max_frames)
 
         question = item["question"]
-        answer = item["answer"]
-
-        # Prompt (NO answer included here)
         prompt = f"Question: {question} Answer:"
 
-        # Full sequence (prompt + answer)
+        # ✅ INFERENCE MODE (NO ANSWER)
+        if self.is_inference:
+            encoded = self.tokenizer(
+                prompt,
+                padding="max_length",
+                truncation=True,
+                max_length=40,
+                return_tensors="pt"
+            )
+
+            return (
+                frames,
+                encoded["input_ids"].squeeze(0),
+                encoded["attention_mask"].squeeze(0)
+            )
+
+        # ✅ TRAIN MODE
+        answer = item["answer"]
         full_text = prompt + " " + answer + self.tokenizer.eos_token
 
         encoded = self.tokenizer(
@@ -40,10 +55,8 @@ class VideoQADataset(Dataset):
         input_ids = encoded["input_ids"].squeeze(0)
         attention_mask = encoded["attention_mask"].squeeze(0)
 
-        # Create labels
         labels = input_ids.clone()
 
-        # Mask prompt tokens
         prompt_ids = self.tokenizer(
             prompt,
             truncation=True,

@@ -19,3 +19,6 @@ class Config:
     BATCH_SIZE = 32
     MAX_FRAMES = 16
     NUM_WORKERS = 4
+
+    TEST_JSON = os.path.join(DATA_DIR, "test.json")
+    OUTPUT_JSON = os.path.join(BASE_DIR, "output.json")
